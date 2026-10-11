@@ -120,6 +120,29 @@ When using the Sites plugin, follow its skill instructions for installation, bui
 
 The portable build runs Vinext directly without a host `timeout` command. The managed-linux build uses `scripts/build-verified.sh` and its existing `SITES_BUILD_TIMEOUT` setting.
 
+## Supabase Setup
+
+RankPoint uses one shared public Supabase database for multiple players. There is no login: every visitor can read the data and call the validated write functions. Do not use this access model for private or sensitive data. A visitor can add or edit players, change rules, record results, and delete match history.
+
+1. Create a project at [Supabase](https://supabase.com/dashboard).
+2. Open **SQL Editor**, create a query, paste the complete contents of `supabase/migrations/20261008000000_rankpoint.sql`, and run it once for a new project.
+3. Run `supabase/migrations/20261011000000_public_players.sql`. Run this migration on both new projects and projects that already use the first migration. It intentionally deletes all old single-player match history while preserving point rules.
+4. Run `supabase/migrations/20261011010000_player_point_history.sql` to provide the public 20-result-per-player history view used by the app.
+5. Open **Project Settings > API** and copy the Project URL and publishable key. The legacy `anon` key also works when a publishable key is unavailable.
+6. Create `.env.local` from `.env.example` and fill in both values:
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+7. Run `npm run dev`. Add a player, record one result, and verify that the player starts at zero before the result is applied.
+8. Open the app in a second browser to verify that player, rule, and result changes arrive through Supabase Realtime.
+
+The multiplayer release does not import `rankpoint-data-v1`; it removes the legacy browser key and starts with no players or match history. Duplicate player names are allowed and are distinguished internally by UUID. Players can be deactivated without deleting their history. Never place a Supabase service-role key in any `NEXT_PUBLIC_*` variable.
+
+For production deployment, configure both `NEXT_PUBLIC_*` values in the hosting provider's **build environment**, then rebuild and redeploy the application. These values are embedded in the browser bundle at build time; adding them only after the build does not configure the deployed site.
+
 ## Learn More
 
 - [vinext Documentation](https://github.com/cloudflare/vinext)
