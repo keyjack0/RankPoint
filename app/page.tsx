@@ -13,6 +13,7 @@ import {
   Power,
   Settings2,
   SlidersHorizontal,
+  Trash2,
   Trophy,
   UserPlus,
   Users,
@@ -152,6 +153,7 @@ export default function Home() {
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
   const [newPlayer, setNewPlayer] = useState(false);
   const [statusPlayer, setStatusPlayer] = useState<Player | null>(null);
+  const [deletingPlayer, setDeletingPlayer] = useState<Player | null>(null);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [newRule, setNewRule] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -458,6 +460,18 @@ export default function Home() {
     });
   };
 
+  const deletePlayer = async () => {
+    if (!deletingPlayer) return;
+    const player = deletingPlayer;
+    await runMutation("player-delete", async () => {
+      const { error } = await getSupabase().rpc("delete_player", { p_id: player.id });
+      if (error) throw error;
+      await refreshAllRef.current();
+      setDeletingPlayer(null);
+      showNotice(`${player.name} dan seluruh riwayatnya dihapus.`);
+    });
+  };
+
   const saveResult = async (player: Player, ruleId: string, note: string) => {
     const entryId = crypto.randomUUID();
     await runMutation("result-save", async () => {
@@ -581,6 +595,7 @@ export default function Home() {
             onRecord={(player) => setRecordingPlayerId(player.id)}
             onEdit={setEditingPlayer}
             onStatus={setStatusPlayer}
+            onDelete={setDeletingPlayer}
           />
         )}
 
@@ -670,6 +685,15 @@ export default function Home() {
         />
       )}
 
+      {deletingPlayer && (
+        <DeletePlayerDialog
+          player={deletingPlayer}
+          pending={pending === "player-delete"}
+          onClose={() => setDeletingPlayer(null)}
+          onConfirm={() => void deletePlayer()}
+        />
+      )}
+
       {(editingRule || newRule) && (
         <RuleEditor
           key={editingRule?.id ?? "new-rule"}
@@ -711,6 +735,7 @@ function PlayersPage({
   onRecord,
   onEdit,
   onStatus,
+  onDelete,
 }: {
   players: Player[];
   showInactive: boolean;
@@ -721,6 +746,7 @@ function PlayersPage({
   onRecord: (player: Player) => void;
   onEdit: (player: Player) => void;
   onStatus: (player: Player) => void;
+  onDelete: (player: Player) => void;
 }) {
   const activeCount = players.filter((player) => player.active).length;
   const inactiveCount = players.length - activeCount;
@@ -797,6 +823,13 @@ function PlayersPage({
                   className="grid size-11 place-items-center rounded-2xl border border-black/8 dark:border-white/10"
                 >
                   <Power className="size-4" />
+                </button>
+                <button
+                  aria-label={`Hapus ${player.name}`}
+                  onClick={() => onDelete(player)}
+                  className="grid size-11 place-items-center rounded-2xl border border-red-500/20 text-red-600 dark:text-red-400"
+                >
+                  <Trash2 className="size-4" />
                 </button>
               </div>
             </article>
@@ -1141,6 +1174,47 @@ function PlayerStatusDialog({
             className="min-h-12 flex-1 rounded-2xl bg-black px-5 text-sm font-bold text-white disabled:opacity-45 dark:bg-white dark:text-black"
           >
             {pending ? "Memproses..." : player.active ? "Nonaktifkan" : "Aktifkan"}
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DeletePlayerDialog({
+  player,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  player: Player;
+  pending: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open onOpenChange={(value) => !value && !pending && onClose()}>
+      <DialogContent mobileSheet className="rounded-[28px] border-black/10 dark:border-white/10 sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Hapus pemain permanen?</DialogTitle>
+          <DialogDescription>
+            {player.name} dan {player.resultCount} riwayat pertandingan akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <button
+            disabled={pending}
+            onClick={onClose}
+            className="min-h-12 rounded-2xl border border-black/10 px-5 text-sm font-bold disabled:opacity-45 dark:border-white/10"
+          >
+            Batal
+          </button>
+          <button
+            disabled={pending}
+            onClick={onConfirm}
+            className="min-h-12 flex-1 rounded-2xl bg-red-600 px-5 text-sm font-bold text-white disabled:opacity-45"
+          >
+            {pending ? "Menghapus..." : "Hapus permanen"}
           </button>
         </DialogFooter>
       </DialogContent>

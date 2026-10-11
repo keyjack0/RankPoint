@@ -122,22 +122,23 @@ The portable build runs Vinext directly without a host `timeout` command. The ma
 
 ## Supabase Setup
 
-RankPoint uses one shared public Supabase database for multiple players. There is no login: every visitor can read the data and call the validated write functions. Do not use this access model for private or sensitive data. A visitor can add or edit players, change rules, record results, and delete match history.
+RankPoint uses one shared public Supabase database for multiple players. There is no login: every visitor can read the data and call the validated write functions. Do not use this access model for private or sensitive data. A visitor can add, edit, deactivate, or permanently delete players, change rules, record results, and delete match history.
 
 1. Create a project at [Supabase](https://supabase.com/dashboard).
 2. Open **SQL Editor**, create a query, paste the complete contents of `supabase/migrations/20261008000000_rankpoint.sql`, and run it once for a new project.
 3. Run `supabase/migrations/20261011000000_public_players.sql`. Run this migration on both new projects and projects that already use the first migration. It intentionally deletes all old single-player match history while preserving point rules.
 4. Run `supabase/migrations/20261011010000_player_point_history.sql` to provide the public 20-result-per-player history view used by the app.
-5. Open **Project Settings > API** and copy the Project URL and publishable key. The legacy `anon` key also works when a publishable key is unavailable.
-6. Create `.env.local` from `.env.example` and fill in both values:
+5. Run `supabase/migrations/20261011020000_delete_player.sql` to enable permanent player deletion together with all of that player's match history.
+6. Open **Project Settings > API** and copy the Project URL and publishable key. The legacy `anon` key also works when a publishable key is unavailable.
+7. Create `.env.local` from `.env.example` and fill in both values:
 
 ```dotenv
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-7. Run `npm run dev`. Add a player, record one result, and verify that the player starts at zero before the result is applied.
-8. Open the app in a second browser to verify that player, rule, and result changes arrive through Supabase Realtime.
+8. Run `npm run dev`. Add a player, record one result, and verify that the player starts at zero before the result is applied.
+9. Open the app in a second browser to verify that player, rule, and result changes arrive through Supabase Realtime.
 
 The multiplayer release does not import `rankpoint-data-v1`; it removes the legacy browser key and starts with no players or match history. Duplicate player names are allowed and are distinguished internally by UUID. Players can be deactivated without deleting their history. Never place a Supabase service-role key in any `NEXT_PUBLIC_*` variable.
 
